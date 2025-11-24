@@ -48,18 +48,22 @@ class Qwen25VL(VLM):
         self.model, self.processor, self.image_processor_raw = self.load()
 
         # Setup image processor from tensor (for adversarial attacks and tensor inputs)
-        # Qwen2.5-VL uses different image sizes, but we'll use a standard size
-        # The processor handles resizing internally, but we need this for tensor operations
+        # Qwen2.5-VL uses patch size of 14, so ensure dimensions are divisible by 14
         if hasattr(self.image_processor_raw, 'size'):
             if isinstance(self.image_processor_raw.size, dict):
-                resize = (self.image_processor_raw.size.get('height', 448), 
-                         self.image_processor_raw.size.get('width', 448))
+                h = self.image_processor_raw.size.get('height', 448)
+                w = self.image_processor_raw.size.get('width', 448)
             else:
-                resize = (self.image_processor_raw.size, self.image_processor_raw.size)
+                h = w = self.image_processor_raw.size
         else:
-            # Default size for Qwen2.5-VL
-            resize = (448, 448)
-        
+            # Default size for Qwen2.5-VL - must be divisible by 14
+            h = w = 448
+
+        # Ensure dimensions are divisible by 14 (patch size)
+        h = ((h + 13) // 14) * 14
+        w = ((w + 13) // 14) * 14
+        resize = (h, w)
+
         # Get normalization stats
         if hasattr(self.image_processor_raw, 'image_mean'):
             mean = self.image_processor_raw.image_mean
@@ -68,7 +72,7 @@ class Qwen25VL(VLM):
             # Default ImageNet stats
             mean = [0.485, 0.456, 0.406]
             std = [0.229, 0.224, 0.225]
-        
+
         self.image_processor_from_tensor = Compose(
             [
                 Resize(resize, interpolation=InterpolationMode.BICUBIC, antialias=True),
@@ -275,7 +279,7 @@ class Qwen25VL(VLM):
             
             else:
                 # Generation with probability computation
-                with torch.cuda.amp.autocast(dtype=self.dtype):
+                with torch.amp.autocast('cuda', dtype=self.dtype):
                     output_dict = self.model.generate(
                         **inputs,
                         output_scores=True,
@@ -325,21 +329,20 @@ class Qwen25VL(VLM):
         Returns:
             Loss tensor
         """
-        # Convert pixel_values to images if needed
+        # For tensor inputs (adversarial attacks), we need to process differently
+        # to maintain gradient flow
         if isinstance(pixel_values, torch.Tensor):
-            images = []
-            for i in range(pixel_values.shape[0]):
-                img_tensor = pixel_values[i]
-                # Denormalize
-                mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1).to(img_tensor.device)
-                std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1).to(img_tensor.device)
-                img_tensor = img_tensor * std + mean
-                img_tensor = torch.clamp(img_tensor * 255, 0, 255).byte()
-                img_np = img_tensor.permute(1, 2, 0).cpu().numpy()
-                images.append(Image.fromarray(img_np))
+            return self._forward_from_tensor(pixel_values, questions, answers)
         else:
-            images = pixel_values
+            return self._forward_from_images(pixel_values, questions, answers)
 
+    def _forward_from_images(
+        self,
+        images: List[Image.Image],
+        questions: List[str],
+        answers: List[str],
+    ) -> torch.Tensor:
+        """Forward pass when inputs are PIL Images (standard case)"""
         total_loss = 0.0
 
         # Process each example individually
@@ -402,12 +405,106 @@ class Qwen25VL(VLM):
             ], dim=1)
             
             # Forward pass with loss computation
-            with torch.cuda.amp.autocast(dtype=self.dtype):
+            with torch.amp.autocast('cuda', dtype=self.dtype):
                 outputs = self.model(
                     input_ids=input_ids_with_eos,
                     attention_mask=attention_mask,
                     pixel_values=full_inputs.get('pixel_values'),
                     image_grid_thw=full_inputs.get('image_grid_thw'),
+                    labels=labels,
+                )
+            
+            total_loss += outputs.loss
+
+        return total_loss
+
+    def _forward_from_tensor(
+        self,
+        pixel_values: torch.Tensor,
+        questions: List[str],
+        answers: List[str],
+    ) -> torch.Tensor:
+        """
+        Forward pass when inputs are tensors (for adversarial attacks).
+        This version maintains gradient flow by working directly with tensors.
+        """
+        total_loss = 0.0
+        
+        # Process each example
+        for idx in range(pixel_values.shape[0]):
+            question = questions[idx]
+            answer = answers[idx]
+            
+            # Get the pixel tensor for this example
+            img_tensor = pixel_values[idx:idx+1]  # Keep batch dimension
+            
+            # Prepare text inputs
+            full_text = question + " " + answer
+            
+            # Create dummy messages just to get the text template
+            # We'll replace the actual image tensors later
+            dummy_image = Image.new('RGB', (224, 224))
+            prompt_messages = self._prepare_messages(dummy_image, question)
+            full_messages = self._prepare_messages(dummy_image, full_text)
+            
+            # Get prompt length (text only, no actual image processing)
+            prompt_text = self.processor.apply_chat_template(
+                prompt_messages, tokenize=False, add_generation_prompt=True
+            )
+            prompt_tokens = self.processor.tokenizer(
+                prompt_text,
+                return_tensors="pt",
+                padding=True,
+            )
+            prompt_length = prompt_tokens['input_ids'].shape[1]
+            
+            # Process full text
+            full_text_formatted = self.processor.apply_chat_template(
+                full_messages, tokenize=False, add_generation_prompt=True
+            )
+            text_inputs = self.processor.tokenizer(
+                full_text_formatted,
+                return_tensors="pt",
+                padding=True,
+            )
+            
+            # Move to device
+            input_ids = text_inputs['input_ids'].to(self.distributed_state.device)
+            attention_mask = text_inputs['attention_mask'].to(self.distributed_state.device)
+            
+            # Add EOS token
+            eos_token_id = self.processor.tokenizer.eos_token_id
+            input_ids_with_eos = torch.cat([
+                input_ids,
+                torch.tensor([[eos_token_id]], device=self.distributed_state.device)
+            ], dim=1)
+            
+            # Create labels
+            labels = input_ids_with_eos.clone()
+            labels[0, :prompt_length] = -100
+            
+            # Adjust attention mask
+            attention_mask = torch.cat([
+                attention_mask,
+                torch.ones((1, 1), device=self.distributed_state.device, dtype=attention_mask.dtype)
+            ], dim=1)
+            
+            # For Qwen, we need to process the image tensor into the format it expects
+            # The pixel_values here are already normalized (from image_processor_from_tensor)
+            # We need to prepare them in Qwen's expected format
+            
+            # Qwen expects specific image grid info - we'll use default values
+            # This is a simplified version - may need adjustment based on actual image sizes
+            image_grid_thw = torch.tensor([[1, img_tensor.shape[2] // 14, img_tensor.shape[3] // 14]], 
+                                          device=self.distributed_state.device)
+            
+            # Forward pass with gradient tracking enabled
+            with torch.amp.autocast('cuda', dtype=self.dtype):
+                outputs = self.model(
+                    input_ids=input_ids_with_eos,
+                    attention_mask=attention_mask,
+                    pixel_values=img_tensor,
+                    image_grid_thw=image_grid_thw,
                     labels=labels,
                 )
             

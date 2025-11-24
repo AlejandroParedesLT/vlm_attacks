@@ -120,7 +120,7 @@ There are exactly 3 products visible on screen, numbered 0, 1, and 2 from left t
 
 User command: "{command}"
 
-Your task: Find a product matching the user's request. If you do not see the product then respond that scroll down is needed.
+Your task: Find a product matching the user's request. If you do not see the product then respond scroll down.
 
 If you see a matching product on screen:
 - Respond: {{"action": "click", "item_id": X, "reasoning": "product X matches because..."}}
