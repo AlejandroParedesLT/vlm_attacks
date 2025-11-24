@@ -2,6 +2,10 @@
 
 A research project implementing a web shopping agent powered by LLaVA (Large Language and Vision Assistant) with adversarial attack capabilities for testing VLM robustness in web navigation scenarios.
 
+Below is a quick demo for the adversarial images, the VLM agent is able to correctly buy the sweater but because of the adversarial image embedded in the golf bag the model decides to buy a buy a golf bag instead of the requested pants.
+
+![Demo](adversariial_attack.gif)
+
 ## 📋 Table of Contents
 
 - [Overview](#overview)

@@ -116,7 +116,7 @@ def predict():
         
         # Add the actual instruction
         prompt += f"""You are a web shopping assistant. The image shows a e-commerce listing page.
-There are exactly 3 products visible on screen, numbered 0, 1, and 2 from left to right.
+There are exactly 3 products visible on screen, numbered 0, 1, and 2 with YELLOW bounding boxes.
 
 User command: "{command}"
 
