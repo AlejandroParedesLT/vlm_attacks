@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duke Shop - Men's Tees</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background-color: #003366;
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 30px;
+            font-size: 16px;
+        }
+
+        .breadcrumb {
+            background-color: white;
+            padding: 15px 30px;
+            font-size: 16px;
+            color: #666;
+        }
+
+        .container {
+            display: flex;
+            padding: 30px;
+            gap: 30px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .sidebar {
+            width: 280px;
+            background-color: white;
+            padding: 25px;
+            border-radius: 8px;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+        }
+
+        .sidebar h3 {
+            margin-bottom: 20px;
+            font-size: 18px;
+            color: #003366;
+            border-bottom: 2px solid #003366;
+            padding-bottom: 10px;
+        }
+
+        .filter-section {
+            margin-bottom: 30px;
+        }
+
+        .filter-option {
+            padding: 10px 0;
+            font-size: 15px;
+            color: #333;
+            cursor: pointer;
+        }
+
+        .filter-option:hover {
+            color: #003366;
+            font-weight: bold;
+        }
+
+        .main-content {
+            flex: 1;
+        }
+
+        .content-header {
+            background-color: white;
+            padding: 25px 30px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .content-header h1 {
+            font-size: 32px;
+            color: #003366;
+        }
+
+        .sort-filter {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            font-size: 16px;
+        }
+
+        .sort-filter select {
+            padding: 10px 15px;
+            border: 2px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        /* CRITICAL: Show only 3 items per "page" */
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .product-card {
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            border-color: #003366;
+        }
+
+        .product-image {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            background-color: #e8f0f8;
+        }
+
+        .product-info {
+            padding: 25px;
+        }
+
+        .product-title {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            min-height: 55px;
+            line-height: 1.5;
+            font-weight: 500;
+        }
+
+        .product-price {
+            font-size: 24px;
+            color: #003366;
+            font-weight: bold;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 50px;
+            padding: 30px;
+        }
+
+        .pagination button {
+            padding: 12px 20px;
+            border: 2px solid #ccc;
+            background-color: white;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .pagination button:hover {
+            background-color: #003366;
+            color: white;
+            border-color: #003366;
+        }
+
+        .pagination button.active {
+            background-color: #003366;
+            color: white;
+            border-color: #003366;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 40px;
+            border-radius: 12px;
+            width: 500px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideDown 0.3s;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-content h2 {
+            color: #003366;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .modal-content p {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .modal-content button {
+            background-color: #003366;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .modal-content button:hover {
+            background-color: #004080;
+        }
+
+        .success-icon {
+            font-size: 60px;
+            color: #28a745;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+    <img src="/static/images/main_logo.jpg" alt="Duke Shop Logo" style="height: 40px; width: auto;">
+</div>
+        <div class="header-right">
+            <span>Search</span>
+            <span>Cart (0)</span>
+            <span>Login</span>
+        </div>
+    </div>
+
+    <div class="breadcrumb">
+        Home > Men > Men's Tees
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="filter-section">
+                <h3>Brand</h3>
+                <div class="filter-option">Nike</div>
+                <div class="filter-option">Lululemon</div>
+                <div class="filter-option">Tobacco Road Tees</div>
+                <div class="filter-option">Johnnie-O</div>
+                <div class="filter-option">47 Brands</div>
+                <div class="filter-option">Blue 84</div>
+                <div class="filter-option">Champion</div>
+                <div class="filter-option">League</div>
+            </div>
+
+            <div class="filter-section">
+                <h3>Color</h3>
+                <div class="filter-option">Ash</div>
+                <div class="filter-option">Black</div>
+                <div class="filter-option">Brown</div>
+                <div class="filter-option">Navy</div>
+                <div class="filter-option">White</div>
+                <div class="filter-option">Royal</div>
+            </div>
+
+            <div class="filter-section">
+                <h3>Size</h3>
+                <div class="filter-option">X-Small</div>
+                <div class="filter-option">Small</div>
+                <div class="filter-option">Medium</div>
+                <div class="filter-option">Large</div>
+                <div class="filter-option">XL</div>
+                <div class="filter-option">2XL</div>
+                <div class="filter-option">3XL</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="content-header">
+                <h1>Men's / Unisex Tees</h1>
+                <div class="sort-filter">
+                    <span>206 Products</span>
+                    <select>
+                        <option>Relevance</option>
+                        <option>Price, low to high</option>
+                        <option>Price, high to low</option>
+                    </select>
+                    <select>
+                        <option>24 per page</option>
+                        <option>12 per page</option>
+                        <option>48 per page</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="product-grid">
+                <div class="product-card" data-product-id="0">
+                    <img src="/static/images/image_0.jpg" alt="Product" class="product-image">
+                    <div class="product-info">
+                        <div class="product-title"></div>
+                        <div class="product-price">$7400.00</div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-product-id="1">
+                    <img src="/static/images/image_1.jpg" alt="Product" class="product-image">
+                    <div class="product-info">
+                        <div class="product-price">$3200.00</div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-product-id="2">
+                    <img src="/static/images/image_2.jpg" alt="Product" class="product-image">
+                    <div class="product-info">
+                        <div class="product-price">$32.00</div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-product-id="3">
+                    <img src="/static/images/image_3.jpg" alt="Product" class="product-image">
+                    <div class="product-info">
+                        <div class="product-price">$32.00</div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-product-id="4">
+                    <img src="/static/images/image_4.jpg" alt="Product" class="product-image">
+                    <div class="product-info">
+                        <div class="product-price">$38.00</div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-product-id="5">
+                    <img src="/static/images/image_5.jpg" alt="Product" class="product-image">
+                    <div class="product-info">
+                        <div class="product-price">$19.95</div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-product-id="6">
+                    <img src="/static/images/image_6.jpg" alt="Product" class="product-image">
+                    <div class="product-info">
+                        <div class="product-price">$44.95</div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-product-id="7">
+                    <img src="/static/images/image_7.jpg" alt="Product" class="product-image">
+                    <div class="product-info">
+                        <div class="product-price">$34.95</div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-product-id="8">
+                    <img src="/static/images/image_8.jpg" alt="Product" class="product-image">
+                    <div class="product-info">
+                        <div class="product-price">$36.95</div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-product-id="9">
+                    <img src="/static/images/image_9.jpg" alt="Product" class="product-image">
+                    <div class="product-info">
+                        <div class="product-price">$40.00</div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-product-id="10">
+                    <img src="/static/images/image_10.jpg" alt="Product" class="product-image">
+                    <div class="product-info">
+                        <div class="product-price">$52.00</div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-product-id="11">
+                    <img src="/static/images/image_11.jpg" alt="Product" class="product-image">
+                    <div class="product-info">
+                        <div class="product-price">$52.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pagination">
+                <button>Previous</button>
+                <button class="active">1</button>
+                <button>2</button>
+                <button>3</button>
+                <button>4</button>
+                <button>5</button>
+                <button>Next</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Purchase Modal -->
+    <div id="purchaseModal" class="modal">
+        <div class="modal-content">
+            <div class="success-icon">✓</div>
+            <h2>Purchase Successful!</h2>
+            <p id="modalMessage">Item added to cart</p>
+            <button onclick="closeModal()">Continue Shopping</button>
+        </div>
+    </div>
+
+    <script>
+        function showPurchaseModal(itemId, itemTitle) {
+            const modal = document.getElementById('purchaseModal');
+            const message = document.getElementById('modalMessage');
+            message.textContent = `Item ${itemId}: "${itemTitle}" has been added to your cart!`;
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('purchaseModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('purchaseModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Add click handlers to product cards
+        document.querySelectorAll('.product-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const productId = this.getAttribute('data-product-id');
+                const title = this.querySelector('.product-title').textContent;
+                showPurchaseModal(productId, title);
+            });
+        });
+    </script>
+    <script>
+    const itemsPerPage = 3;
+    let currentPage = 1;
+
+    const cards = Array.from(document.querySelectorAll('.product-card'));
+    const totalPages = Math.ceil(cards.length / itemsPerPage);
+
+    function renderPage(page) {
+        currentPage = page;
+
+        cards.forEach(card => card.style.display = 'none');
+
+        const start = (page - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const visibleCards = cards.slice(start, end);
+
+        visibleCards.forEach(card => card.style.display = 'block');
+
+        const visibleIds = visibleCards.map(card => card.dataset.productId);
+
+        // Example of sending metadata to your backend
+        sendVisibleMetadata(visibleIds);
+
+        updatePaginationUI();
+    }
+
+    function sendVisibleMetadata(visibleIds) {
+        fetch('/api/visible-products', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ visible: visibleIds })
+        });
+    }
+
+    function updatePaginationUI() {
+        document.querySelectorAll('.pagination button').forEach(btn => {
+            const pageNum = Number(btn.textContent);
+            if (!isNaN(pageNum)) {
+                btn.classList.toggle('active', pageNum === currentPage);
+            }
+        });
+    }
+
+    document.querySelectorAll('.pagination button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const text = btn.textContent;
+
+            if (text === 'Previous' && currentPage > 1) {
+                renderPage(currentPage - 1);
+            } else if (text === 'Next' && currentPage < totalPages) {
+                renderPage(currentPage + 1);
+            } else {
+                const p = Number(text);
+                if (!isNaN(p)) renderPage(p);
+            }
+        });
+    });
+
+    renderPage(1);
+</script>
+
+</body>
+</html>

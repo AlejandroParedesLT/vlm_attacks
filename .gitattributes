@@ -1,0 +1,4 @@
+agent_attack/data/agent_adv/* filter=lfs diff=lfs merge=lfs -text
+agent_attack/data/agent_clean/* filter=lfs diff=lfs merge=lfs -text
+agent_attack/data/agent_adv/** filter=lfs diff=lfs merge=lfs -text
+agent_attack/data/agent_clean/** filter=lfs diff=lfs merge=lfs -text
