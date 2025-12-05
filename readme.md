@@ -631,8 +631,8 @@ Vision-Language Models are increasingly deployed in real-world applications like
 ```bibtex
 @misc{vlm-web-agent-attacks,
   title={Vision-Language Model Web Agent with Adversarial Attacks},
-  author={Your Name},
-  year={2024},
+  author={Alejandro Paredes La Torre},
+  year={2025},
   institution={Duke University}
 }
 ```
